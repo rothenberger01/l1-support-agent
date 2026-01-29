@@ -1,0 +1,152 @@
+# Support Domain Definitions
+# Each domain has:
+# - keywords: what triggers detection
+# - kb_tags: which KB articles to search
+# - tools: what the agent can do
+# - escalation_triggers: when to escalate
+# - rules: compliance/policy checks
+
+domains:
+  billing:
+    name: "Billing & Payments"
+    description: "Billing, invoices, refunds, subscriptions, payment methods"
+    keywords:
+      - charge
+      - invoice
+      - refund
+      - payment
+      - subscription
+      - card
+      - billing
+      - credit
+      - debit
+      - pricing
+    kb_tags:
+      - billing
+      - payment
+      - subscription
+      - refund
+      - invoice
+    tools:
+      - kb_search
+      - ticket_create
+    escalation_triggers:
+      # Auto-escalate if confidence is low
+      - condition: confidence < 0.65
+        reason: "Low confidence on financial question"
+      # Auto-escalate for large refunds
+      - condition: keyword_matches(user_query, ["refund", "money back"])
+        reason: "Refund request requires manager approval"
+      # Auto-escalate for subscription changes
+      - condition: keyword_matches(user_query, ["cancel subscription", "downgrade"])
+        reason: "Subscription changes need account review"
+      # Auto-escalate for VIP customers
+      - condition: customer_type == "vip"
+        reason: "VIP customer - route to priority support"
+    rules:
+      - id: never_promise_refund
+        text: "NEVER promise refund without checking policy. Always say 'I'll escalate'"
+      - id: must_cite_source
+        text: "Always cite KB article when answering billing questions"
+      - id: must_mention_sla
+        text: "Always inform about payment SLA (processing takes 3-5 business days)"
+      - id: no_password_on_billing
+        text: "If customer asks password during billing: refuse and escalate"
+
+  technical:
+    name: "Technical Issues"
+    description: "Bugs, errors, crashes, API issues, troubleshooting"
+    keywords:
+      - error
+      - bug
+      - crash
+      - doesn't work
+      - broken
+      - issue
+      - problem
+      - api
+      - integration
+      - connection
+      - timeout
+      - failed
+    kb_tags:
+      - technical
+      - troubleshooting
+      - error-codes
+      - faq
+      - api-docs
+    tools:
+      - kb_search
+      - ticket_create
+    escalation_triggers:
+      - condition: confidence < 0.75
+        reason: "Technical issue requires expert review"
+      - condition: keyword_matches(user_query, ["critical", "production", "down", "outage"])
+        reason: "Critical issue - escalate immediately"
+      - condition: conversation_length > 5
+        reason: "Multiple back-and-forth - escalate to specialist"
+    rules:
+      - id: provide_error_code
+        text: "Always ask for error code/logs if customer mentions errors"
+      - id: reproduction_steps
+        text: "Ask for step-by-step reproduction if unclear"
+      - id: escalate_critical
+        text: "If 'production' or 'outage' mentioned: escalate immediately"
+      - id: no_direct_fix
+        text: "Do NOT ask customer to modify code without senior approval"
+
+  account:
+    name: "Account & Access"
+    description: "Password reset, login issues, account settings, permissions, 2FA"
+    keywords:
+      - password
+      - login
+      - can't login
+      - access
+      - account
+      - email
+      - two-factor
+      - 2fa
+      - authentication
+      - locked
+      - reset
+    kb_tags:
+      - account
+      - password
+      - authentication
+      - 2fa
+      - login
+    tools:
+      - kb_search
+      - ticket_create
+    escalation_triggers:
+      - condition: confidence < 0.8
+        reason: "Account security - escalate if uncertain"
+      - condition: customer_type == "enterprise"
+        reason: "Enterprise account issue - needs admin"
+    rules:
+      - id: never_reset_password_directly
+        text: "NEVER reset password for customer. Send reset link instead."
+      - id: verify_identity
+        text: "Always verify customer identity before sending password reset"
+      - id: check_2fa_status
+        text: "Ask about 2FA status if customer locked out"
+      - id: no_sharing_secrets
+        text: "Do NOT ask for passwords or secrets in chat"
+
+  general:
+    name: "General Inquiry"
+    description: "Default catch-all for questions not in specific domain"
+    keywords: []  # catch-all
+    kb_tags:
+      - faq
+      - general
+    tools:
+      - kb_search
+      - ticket_create
+    escalation_triggers:
+      - condition: confidence < 0.6
+        reason: "Could not determine domain or answer type"
+    rules:
+      - id: be_helpful
+        text: "Be polite and helpful. If unsure, escalate."
